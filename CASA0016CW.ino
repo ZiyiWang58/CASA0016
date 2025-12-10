@@ -2,8 +2,8 @@
  * Coffee Extraction Assistant
  * CASA 0016
  * Ziyi Wang
- * v2 - 9th Dec 2025
- * New function: Reset; fix temp detection
+ * v3 - 10th Dec 2025
+ * Calibration and Improvement
  ***************************************************/
 
 #include <Wire.h>
@@ -20,7 +20,7 @@ Adafruit_SSD1306 display(128, 64, &Wire);
 #define LOADCELL_DOUT 4
 #define LOADCELL_SCK 5
 HX711 scale;
-float calibration_factor = 414.0;
+float calibration_factor = 400.0;
 
 // -- MAX31865 --
 Adafruit_MAX31865 thermo = Adafruit_MAX31865(10, 11, 12, 13); 
@@ -34,11 +34,13 @@ float flowRate = 0;  // g/s
 
 // -- Temperature (placeholder) --
 float tempC = -999;
+float tempOffset = 20.0;   // Temp offset
 
 // -- Advice Thresholds --
 float idealFlowMin = 1.5;  // g/s
 float idealFlowMax = 2.5;  // g/s
-float idealTemp = 92.0;    // °C
+float idealTempMin = 88.0;    // °C
+float idealTempMax = 96.0;    // °C
 
 // -- Reset Logic --
 bool resetPending = false;
@@ -98,6 +100,7 @@ void loop() {
     // -- Temperature Read (PT100) --
   uint16_t rtd = thermo.readRTD();
   tempC = thermo.temperature(RNOMINAL, RREF);
+  tempC += tempOffset;
 
   uint8_t fault = thermo.readFault();
   if (fault) {
@@ -165,8 +168,8 @@ void loop() {
 
   // Temp Advice
   if (tempC > -100) {                                 // If real Temp
-    if (tempC < idealTemp - 1) tempArrow = '^';       // Hotter
-    else if (tempC > idealTemp + 1) tempArrow = 'v';  // Colder
+    if (tempC < idealTempMin) tempArrow = '^';       // Hotter
+    else if (tempC > idealTempMax) tempArrow = 'v';  // Colder
     else tempArrow = '-';
   } else {
     tempArrow = '-';  // Without Temp sensor: "-"
